@@ -1,32 +1,56 @@
-/**
- * Some predefined delay values (in milliseconds).
- */
-export enum Delays {
-  Short = 500,
-  Medium = 2000,
-  Long = 5000,
-}
+import axios from 'axios';
+import jsdom from 'jsdom';
+import { pause } from './helpers/utils.js';
+import  db, { Ad, Collection } from './helpers/database.js';
+import { compareCollections } from './helpers/utils.js';
 
-/**
- * Returns a Promise<string> that resolves after a given time.
- *
- * @param {string} name - A name.
- * @param {number=} [delay=Delays.Medium] - A number of milliseconds to delay resolution of the Promise.
- * @returns {Promise<string>}
- */
-function delayedHello(
-  name: string,
-  delay: number = Delays.Medium,
-): Promise<string> {
-  return new Promise((resolve: (value?: string) => void) =>
-    setTimeout(() => resolve(`Hello, ${name}`), delay),
-  );
-}
+const { JSDOM } = jsdom;
 
-// Below are examples of using ESLint errors suppression
-// Here it is suppressing a missing return type definition for the greeter function.
+(async () => {
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-export async function greeter(name: string) {
-  return await delayedHello(name, Delays.Long);
-}
+  await pause(500);
+
+  let html: string;
+  try {
+    const resp = await axios.get('https://nn.hh.ru/search/vacancy?no_magic=true&L_save_area=true&text=Nodejs+developer+NOT+php&excluded_text=&area=2&salary=&currency_code=RUR&experience=doesNotMatter&order_by=relevance&search_period=1&items_on_page=100', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'Accept-Language': 'en-US,en;q=0.9'
+      }
+    });
+     html = resp.data
+  } catch (error) {
+    console.log("🚀 ~ file: main.ts:9 ~ error:", error)
+  }
+
+  const dom = new JSDOM(html)
+  const document = dom.window.document
+  const items = document.querySelectorAll('.serp-item')
+
+
+const newAds: Collection<Ad> = {}
+
+items.forEach(node => {
+  let titleCard = node.querySelector('.serp-item__title').textContent
+  
+  
+  newAds[titleCard] = {
+    id: titleCard,
+    url: node.querySelector('.serp-item__title').getAttribute('href'),
+    title: titleCard
+  }
+})
+
+  const saveAds = await db.getSavedAds()
+
+  const newIds = compareCollections(saveAds, newAds)
+
+  for(const id of newIds){
+    await db.setNewAd(newAds[id])
+    await pause(300);
+  }
+
+process.exit(1)
+
+})()
