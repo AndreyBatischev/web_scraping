@@ -45,7 +45,7 @@ class DatabaseService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setNewAd(ad: Ad): Promise<any> {
         return new Promise((resolve, reject) => {
-            set(ref(this.db, 'ads' + '/' + ad.id), ad).then(() => resolve(''))
+            set(ref(this.db, 'ads' + '/' + (ad.id).split(' ').join('').replace(/[.#$\[\]]/g, '')), ad).then(() => resolve(''))
             .catch(err => {
                 reject(err)
             })
